@@ -17,7 +17,6 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class JwtService {
-
     private final KeyProvider keys;
     private final JwtKeysConfig keysConfig;
 
@@ -40,7 +39,7 @@ public class JwtService {
                 .compact();
     }
 
-    public String createRefresh(UUID userId, String email, Role role, String familyId, String jti, Duration ttl) {
+    public String createRefresh(Long userId, String email, Role role, String familyId, String jti, Duration ttl) {
         Instant now = Instant.now();
         Instant exp = now.plus(ttl);
         return Jwts.builder()
@@ -59,5 +58,6 @@ public class JwtService {
     }
 
     public RSAPublicKey getPublicKey() { return keys.getPublicKey(); }
+
     public String getKeyId() { return keys.getKeyId(); }
 }
