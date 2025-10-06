@@ -18,6 +18,7 @@ public class JwtKeysConfig {
         private String accessTtl;
         private String refreshTtl;
         private String cookieName;
+        private String cookieDomain;
         private String jwksPath;
     }
 

@@ -26,7 +26,6 @@ import java.util.Base64;
 public class KeyProvider {
     private final ResourceLoader resourceLoader;
     private final JwtKeysConfig jwtKeysConfig;
-
     @Getter private RSAPrivateKey privateKey;
     @Getter private RSAPublicKey publicKey;
     @Getter private String keyId;
