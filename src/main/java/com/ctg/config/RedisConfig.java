@@ -1,14 +1,15 @@
 package com.ctg.config;
 
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.ctg.domain.RefreshToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 @Configuration
@@ -19,23 +20,22 @@ public class RedisConfig {
     }
 
     @Bean
-    public GenericJackson2JsonRedisSerializer jackson2JsonRedisSerializer() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
-        return new GenericJackson2JsonRedisSerializer(mapper);
-    }
-
-    @Bean
-    public RedisTemplate<String, Object> redisTemplate(
+    public RedisTemplate<String, RefreshToken> refreshTokenRedisTemplate(
             RedisConnectionFactory connectionFactory,
-            GenericJackson2JsonRedisSerializer serializer
+            ObjectMapper objectMapper
     ) {
-        var template = new RedisTemplate<String, Object>();
+
+        ObjectMapper mapper = objectMapper.copy()
+                .registerModule(new JavaTimeModule())
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+        var valueSer = new Jackson2JsonRedisSerializer<>(mapper, RefreshToken.class);
+        var template = new RedisTemplate<String, RefreshToken>();
         template.setConnectionFactory(connectionFactory);
         template.setKeySerializer(new StringRedisSerializer());
         template.setHashKeySerializer(new StringRedisSerializer());
-        template.setValueSerializer(serializer);
-        template.setHashValueSerializer(serializer);
+        template.setValueSerializer(valueSer);
+        template.setHashValueSerializer(valueSer);
         template.afterPropertiesSet();
         return template;
     }
