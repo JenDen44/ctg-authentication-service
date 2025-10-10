@@ -71,10 +71,8 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public ResponseEntity<Void> logout(String authHeader, String refreshCookie, String rawCookieHeader) {
-        String access = tokenUtil.retrieveAccessToken(authHeader);
+        String access = TokenUtil.retrieveAccessToken(authHeader);
         String refreshToken = tokenUtil.retrieveRefreshToken(refreshCookie, rawCookieHeader);
-
-        // Блокируем access по jti на оставшийся TTL (если парсинг удался)
         try {
             Claims claims = jwtService.parseAccessClaims(access);
             long ttlSec = Math.max(0, claims.getExpiration().toInstant().getEpochSecond() - Instant.now().getEpochSecond());
@@ -82,15 +80,14 @@ public class AuthServiceImpl implements AuthService {
                 blacklist.blacklist(claims.getId(), Duration.ofSeconds(ttlSec));
             }
         } catch (Exception e) {
-            // Не валим логаут из-за битого access — просто продолжаем
-            // (можно добавить логгер на debug)
+            // Не валим логаут из-за битого access просто продолжаем
+            // TODO log
         }
 
-        // Отзываем refresh
         try {
             refreshTokenService.revoke(refreshToken);
         } catch (Exception e) {
-            // аналогично: не мешаем пользователю «выйти»
+            // TODO log
         }
 
         ResponseCookie expired = tokenUtil.buildRefreshCookie("", false);
@@ -99,18 +96,19 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public Mono<ResponseEntity<Void>> logoutAll(String authHeader) {
-        String access = tokenUtil.retrieveAccessToken(authHeader);
+        String access = TokenUtil.retrieveAccessToken(authHeader);
         Claims claims = jwtService.parseAccessClaims(access);
         Long userId = Long.parseLong(claims.getSubject());
 
         refreshTokenService.revokeAll(userId);
+
         return userClient.incrementTokenVersion(userId)
                 .thenReturn(ResponseEntity.noContent().build());
     }
 
     @Override
     public ResponseEntity<ValidateResponse> validate(String authHeader) {
-        String access = tokenUtil.retrieveAccessToken(authHeader);
+        String access = TokenUtil.retrieveAccessToken(authHeader);
         Claims claims = jwtService.parseAccessClaims(access);
 
         String jti = claims.getId();

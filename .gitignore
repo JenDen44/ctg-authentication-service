@@ -25,3 +25,9 @@ Thumbs.db
 .classpath
 .project
 
+# Keys
+/src/main/resources/keys/
+/keys/
+/secrets/
+/*.pem
+
