@@ -7,6 +7,7 @@ import io.jsonwebtoken.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.security.Key;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
 import java.time.Instant;
@@ -23,7 +24,7 @@ public class JwtService {
         Instant now = Instant.now();
         Instant exp = now.plus(ttl);
         return Jwts.builder()
-                .setHeaderParam("kid", keys.getKeyId())
+                .setHeaderParam("kid", keys.getActiveKid())
                 .setIssuer(keysConfig.getJwt().getIssuer())
                 .setAudience(keysConfig.getJwt().getAudience())
                 .setSubject(userId.toString())
@@ -34,7 +35,7 @@ public class JwtService {
                 .setId(UUID.randomUUID().toString())
                 .setIssuedAt(Date.from(now))
                 .setExpiration(Date.from(exp))
-                .signWith(keys.getPrivateKey(), SignatureAlgorithm.RS256)
+                .signWith(keys.getActivePrivateKey(), SignatureAlgorithm.RS256)
                 .compact();
     }
 
@@ -42,7 +43,7 @@ public class JwtService {
         Instant now = Instant.now();
         Instant exp = now.plus(ttl);
         return Jwts.builder()
-                .setHeaderParam("kid", keys.getKeyId())
+                .setHeaderParam("kid", keys.getActiveKid())
                 .setIssuer(keysConfig.getJwt().getIssuer())
                 .setSubject(userId.toString())
                 .claim(JwtConstants.CLAIM_EMAIL, email)
@@ -52,15 +53,28 @@ public class JwtService {
                 .setId(jti)
                 .setIssuedAt(Date.from(now))
                 .setExpiration(Date.from(exp))
-                .signWith(keys.getPrivateKey(), SignatureAlgorithm.RS256)
+                .signWith(keys.getActivePrivateKey(), SignatureAlgorithm.RS256)
                 .compact();
     }
 
-    public Jws<Claims> parseSigned(String jwt) {
+    private SigningKeyResolverAdapter resolver = new SigningKeyResolverAdapter() {
+        @Override
+        public Key resolveSigningKey(JwsHeader header, Claims claims) {
+            String kid = header.getKeyId();
+            RSAPublicKey pub = kid != null ? keys.getPublicKeyByKid(kid) : keys.getActivePublicKey();
+            if (pub == null) throw new JwtException("Unknown kid: " + kid);
+            return pub;
+        }
+    };
+
+    Jws<Claims> parseSigned(String jwt) {
         return Jwts.parser()
-                .verifyWith(keys.getPublicKey())
+                .requireIssuer(keysConfig.getJwt().getIssuer())
+                .requireAudience(keysConfig.getJwt().getAudience())
+                .setAllowedClockSkewSeconds(30)
+                .setSigningKeyResolver(resolver)
                 .build()
-                .parseSignedClaims(jwt);
+                .parseClaimsJws(jwt);
     }
 
     public Claims parseClaims(String jwt) {
@@ -85,7 +99,7 @@ public class JwtService {
         return claims;
     }
 
-    public RSAPublicKey getPublicKey() { return keys.getPublicKey(); }
+    public RSAPublicKey getPublicKey() { return keys.getActivePublicKey(); }
 
-    public String getKeyId() { return keys.getKeyId(); }
+    public String getKeyId() { return keys.getActiveKid(); }
 }

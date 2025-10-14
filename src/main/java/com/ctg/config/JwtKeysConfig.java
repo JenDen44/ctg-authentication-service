@@ -4,6 +4,8 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.List;
+
 @Configuration
 @ConfigurationProperties(prefix = "auth")
 @Data
@@ -24,8 +26,14 @@ public class JwtKeysConfig {
 
     @Data
     public static class Keys {
-        private String privatePemLocation;
-        private String publicPemLocation;
-        private String keyId;
+        private String activeKid;
+        private List<KeyItem> items;
+
+        @Data
+        public static class KeyItem {
+            private String kid;
+            private String privatePem;
+            private String publicPem;
+        }
     }
 }
